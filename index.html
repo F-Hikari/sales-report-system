@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>売上日報システム</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Firebase SDK の読み込み -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-storage-compat.js"></script>
+    <!-- Chart.js の読み込み (グラフ表示用) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- jsPDF の読み込み (PDF出力用) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- PapaParse の読み込み (CSV処理用) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+</head>
+<body>
+    <header>
+        <h1>売上日報システム</h1>
+        <nav>
+            <button id="btn-new-report">新規日報作成</button>
+            <button id="btn-view-reports">日報一覧</button>
+            <button id="btn-statistics">統計・グラフ</button>
+            <button id="btn-manage-users">入力者管理</button>
+            <button id="btn-help">使い方</button>
+        </nav>
+    </header>
+
+    <main>
+        <!-- 新規日報入力フォーム -->
+        <section id="new-report-section" class="hidden">
+            <h2>新規日報作成</h2>
+            <form id="report-form">
+                <div class="form-group">
+                    <label for="report-date">日付</label>
+                    <input type="date" id="report-date" required>
+                </div>
+                <div class="form-group">
+                    <label for="report-user">記入者</label>
+                    <select id="report-user" required>
+                        <option value="">選択してください</option>
+                        <!-- ユーザーリストはJavaScriptで動的に生成 -->
+                    </select>
+                    <button type="button" id="btn-add-user">新規登録</button>
+                </div>
+                <div class="form-group">
+                    <label for="customer-count">売上人数</label>
+                    <input type="number" id="customer-count" min="0" required>
+                </div>
+                
+                <!-- 参加経緯セクション -->
+                <fieldset>
+                    <legend>参加経緯別人数</legend>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="referral-count">紹介</label>
+                            <input type="number" id="referral-count" min="0" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="advertising-count">広告</label>
+                            <input type="number" id="advertising-count" min="0" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="repeat-count">リピート</label>
+                            <input type="number" id="repeat-count" min="0" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="walkin-count">飛び込み</label>
+                            <input type="number" id="walkin-count" min="0" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="event-count">イベント参加</label>
+                            <input type="number" id="event-count" min="0" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="sns-count">SNSからの流入</label>
+                            <input type="number" id="sns-count" min="0" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="search-count">オンライン検索</label>
+                            <input type="number" id="search-count" min="0" value="0">
+                        </div>
+                    </div>
+                </fieldset>
+                
+                <!-- 決済方法セクション -->
+                <fieldset>
+                    <legend>決済方法別売上</legend>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="cash-amount">現金</label>
+                            <input type="number" id="cash-amount" min="0" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="credit-amount">クレジットカード</label>
+                            <input type="number" id="credit-amount" min="0" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="electronic-amount">電子マネー</label>
+                            <input type="number" id="electronic-amount" min="0" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="web-amount">Web予約</label>
+                            <input type="number" id="web-amount" min="0" value="0">
+                        </div>
+                    </div>
+                </fieldset>
+                
+                <div class="form-group">
+                    <label for="report-notes">備考</label>
+                    <textarea id="report-notes"></textarea>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" id="btn-save-report">保存</button>
+                    <button type="reset">リセット</button>
+                </div>
+            </form>
+        </section>
+
+        <!-- 日報一覧セクション -->
+        <section id="reports-list-section" class="hidden">
+            <h2>日報一覧</h2>
+            <div class="filter-options">
+                <div class="form-group">
+                    <label for="filter-start-date">期間開始</label>
+                    <input type="date" id="filter-start-date">
+                </div>
+                <div class="form-group">
+                    <label for="filter-end-date">期間終了</label>
+                    <input type="date" id="filter-end-date">
+                </div>
+                <div class="form-group">
+                    <label for="filter-user">記入者</label>
+                    <select id="filter-user">
+                        <option value="">すべて</option>
+                        <!-- ユーザーリストはJavaScriptで動的に生成 -->
+                    </select>
+                </div>
+                <button id="btn-apply-filter">絞り込み</button>
+                <button id="btn-reset-filter">リセット</button>
+            </div>
+            
+            <div class="export-options">
+                <button id="btn-export-pdf">PDF出力</button>
+                <button id="btn-export-csv">CSV出力</button>
+            </div>
+            
+            <table id="reports-table">
+                <thead>
+                    <tr>
+                        <th>日付</th>
+                        <th>記入者</th>
+                        <th>売上人数</th>
+                        <th>売上合計</th>
+                        <th>作成日時</th>
+                        <th>最終更新</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- 日報データはJavaScriptで動的に生成 -->
+                </tbody>
+            </table>
+        </section>
+
+        <!-- 統計・グラフセクション -->
+        <section id="statistics-section" class="hidden">
+            <h2>統計・グラフ</h2>
+            
+            <div class="chart-filters">
+                <div class="form-group">
+                    <label for="chart-period">期間</label>
+                    <select id="chart-period">
+                        <option value="daily">日次</option>
+                        <option value="weekly">週次</option>
+                        <option value="monthly">月次</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="chart-start-date">開始日</label>
+                    <input type="date" id="chart-start-date">
+                </div>
+                <div class="form-group">
+                    <label for="chart-end-date">終了日</label>
+                    <input type="date" id="chart-end-date">
+                </div>
+                <button id="btn-update-chart">更新</button>
+            </div>
+            
+            <div class="charts-container">
+                <div class="chart-wrapper">
+                    <h3>売上推移</h3>
+                    <canvas id="sales-trend-chart"></canvas>
+                </div>
+                <div class="chart-wrapper">
+                    <h3>参加経緯内訳</h3>
+                    <canvas id="source-pie-chart"></canvas>
+                </div>
+                <div class="chart-wrapper">
+                    <h3>決済方法内訳</h3>
+                    <canvas id="payment-pie-chart"></canvas>
+                </div>
+                <div class="chart-wrapper">
+                    <h3>前月同期間比較</h3>
+                    <canvas id="comparison-chart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- 入力者管理セクション -->
+        <section id="users-section" class="hidden">
+            <h2>入力者管理</h2>
+            <div class="user-form">
+                <div class="form-group">
+                    <label for="new-user-name">新規入力者名</label>
+                    <input type="text" id="new-user-name">
+                </div>
+                <button id="btn-add-new-user">追加</button>
+            </div>
+            
+            <table id="users-table">
+                <thead>
+                    <tr>
+                        <th>名前</th>
+                        <th>登録日</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- ユーザーリストはJavaScriptで動的に生成 -->
+                </tbody>
+            </table>
+        </section>
+
+        <!-- ヘルプセクション -->
+        <section id="help-section" class="hidden">
+            <h2>使い方ガイド</h2>
+            <div class="help-content">
+                <h3>1. 日報の新規作成</h3>
+                <p>「新規日報作成」ボタンをクリックして、日報入力フォームを開きます。</p>
+                <p>必要事項を入力し、「保存」ボタンをクリックすると日報が作成されます。</p>
+                
+                <h3>2. 日報一覧の閲覧</h3>
+                <p>「日報一覧」ボタンをクリックすると、これまでに作成された日報の一覧が表示されます。</p>
+                <p>日付や記入者で絞り込みができます。</p>
+                
+                <h3>3. 統計・グラフの閲覧</h3>
+                <p>「統計・グラフ」ボタンをクリックすると、売上データをグラフ化した画面が表示されます。</p>
+                <p>日次/週次/月次の切り替えや、期間指定ができます。</p>
+                
+                <h3>4. 入力者の管理</h3>
+                <p>「入力者管理」ボタンをクリックすると、日報の記入者を追加・管理できます。</p>
+                <p>削除は確認画面が表示されますので、誤って削除しないよう注意してください。</p>
+                
+                <h3>5. データのエクスポート</h3>
+                <p>日報一覧画面で「PDF出力」または「CSV出力」ボタンをクリックすると、表示中のデータをエクスポートできます。</p>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>© 2025 売上日報システム</p>
+    </footer>
+
+    <!-- JavaScriptファイルの読み込み -->
+    <script src="js/firebase-config.js"></script>
+    <script src="js/users.js"></script>
+    <script src="js/reports.js"></script>
+    <script src="js/export.js"></script>
+    <script src="js/help.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

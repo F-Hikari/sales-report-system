@@ -111,4 +111,90 @@ function loadUsersTable() {
             });
             
             // 編集ボタンのイベントリスナーを追加
-            document.querySelectorA
+            document.querySelectorAll('.btn-edit-user').forEach(function(button) {
+                button.addEventListener('click', function() {
+                    const userId = this.getAttribute('data-id');
+                    editUser(userId);
+                });
+            });
+            
+            // 削除ボタンのイベントリスナーを追加
+            document.querySelectorAll('.btn-delete-user').forEach(function(button) {
+                button.addEventListener('click', function() {
+                    const userId = this.getAttribute('data-id');
+                    const userName = this.getAttribute('data-name');
+                    confirmDeleteUser(userId, userName);
+                });
+            });
+        })
+        .catch(function(error) {
+            console.error('ユーザーテーブルの読み込み中にエラーが発生しました:', error);
+            alert('ユーザーテーブルの読み込み中にエラーが発生しました');
+        });
+}
+
+// ユーザーを編集する関数
+function editUser(userId) {
+    // ユーザーデータを取得
+    usersRef.doc(userId).get()
+        .then(function(doc) {
+            if (doc.exists) {
+                const userData = doc.data();
+                
+                // 新しい名前を入力
+                const newName = prompt('入力者名を入力してください:', userData.name);
+                
+                if (newName && newName.trim() !== '' && newName !== userData.name) {
+                    // 更新
+                    usersRef.doc(userId).update({
+                        name: newName,
+                        updatedAt: new Date()
+                    })
+                    .then(function() {
+                        alert(`入力者名を「${newName}」に変更しました`);
+                        
+                        // ユーザーリストを再読み込み
+                        loadUsersList();
+                        loadUsersTable();
+                    })
+                    .catch(function(error) {
+                        console.error('ユーザーの更新中にエラーが発生しました:', error);
+                        alert('ユーザーの更新中にエラーが発生しました');
+                    });
+                }
+            } else {
+                alert('指定されたユーザーが見つかりません');
+            }
+        })
+        .catch(function(error) {
+            console.error('ユーザーデータの取得中にエラーが発生しました:', error);
+            alert('ユーザーデータの取得中にエラーが発生しました');
+        });
+}
+
+// ユーザー削除の確認
+function confirmDeleteUser(userId, userName) {
+    if (confirm(`入力者「${userName}」を削除しますか？この操作は元に戻せません。`)) {
+        deleteUser(userId, userName);
+    }
+}
+
+// ユーザーを削除する関数（実際には非表示にする）
+function deleteUser(userId, userName) {
+    // 非表示フラグを設定
+    usersRef.doc(userId).update({
+        isArchived: true,
+        archivedAt: new Date()
+    })
+    .then(function() {
+        alert(`入力者「${userName}」を削除しました`);
+        
+        // ユーザーリストを再読み込み
+        loadUsersList();
+        loadUsersTable();
+    })
+    .catch(function(error) {
+        console.error('ユーザーの削除中にエラーが発生しました:', error);
+        alert('ユーザーの削除中にエラーが発生しました');
+    });
+}

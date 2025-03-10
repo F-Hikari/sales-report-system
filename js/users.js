@@ -36,43 +36,43 @@ function loadUsersList() {
 
 // 新規ユーザーを追加する関数
 function addNewUser(userName) {
-    // 名前の重複チェック
-    usersRef.where('name', '==', userName).get()
-        .then(function(querySnapshot) {
-            if (!querySnapshot.empty) {
-                alert(`「${userName}」は既に登録されています`);
-                return;
+    console.log('ユーザー追加処理を開始:', userName);
+    
+    // 名前のバリデーション
+    if (!userName || userName.trim() === '') {
+        alert('有効な名前を入力してください');
+        return;
+    }
+    
+    // 現在の日時
+    const now = new Date();
+    
+    // ユーザーデータを作成
+    const userData = {
+        name: userName,
+        createdAt: now,
+        updatedAt: now,
+        isActive: true,
+        isArchived: false
+    };
+    
+    // Firestoreに直接追加（重複チェックを一時的に省略）
+    usersRef.add(userData)
+        .then(function(docRef) {
+            console.log('ユーザー追加成功:', docRef.id);
+            alert(`入力者「${userName}」が追加されました`);
+            
+            // ユーザーリストを再読み込み
+            loadUsersList();
+            try {
+                loadUsersTable();
+            } catch (e) {
+                console.log('ユーザーテーブル読み込みでエラー発生:', e);
             }
-            
-            // 現在の日時
-            const now = new Date();
-            
-            // ユーザーデータを作成
-            const userData = {
-                name: userName,
-                createdAt: now,
-                updatedAt: now,
-                isActive: true,
-                isArchived: false
-            };
-            
-            // Firestoreに追加
-            usersRef.add(userData)
-                .then(function() {
-                    alert(`入力者「${userName}」が追加されました`);
-                    
-                    // ユーザーリストを再読み込み
-                    loadUsersList();
-                    loadUsersTable();
-                })
-                .catch(function(error) {
-                    console.error('ユーザーの追加中にエラーが発生しました:', error);
-                    alert('ユーザーの追加中にエラーが発生しました');
-                });
         })
         .catch(function(error) {
-            console.error('ユーザー重複チェック中にエラーが発生しました:', error);
-            alert('ユーザー重複チェック中にエラーが発生しました');
+            console.error('ユーザーの追加中にエラーが発生しました:', error);
+            alert('ユーザーの追加中にエラーが発生しました: ' + error.message);
         });
 }
 

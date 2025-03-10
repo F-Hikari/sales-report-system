@@ -24,12 +24,32 @@ function saveReport() {
     // 備考を取得
     const notes = document.getElementById('report-notes').value;
     
-    // 合計が一致するかチェック
-    const sourceTotal = referralCount + advertisingCount + repeatCount + walkinCount + eventCount + snsCount + searchCount;
-    if (sourceTotal !== customerCount) {
-        alert('参加経緯別人数の合計が売上人数と一致しません');
-        return;
-    }
+ // 合計が一致するかチェック
+const sourceTotal = referralCount + advertisingCount + repeatCount + walkinCount + eventCount + snsCount + searchCount;
+if (sourceTotal !== customerCount) {
+    console.log('人数不一致:', '合計売上人数=', customerCount, '参加経緯合計=', sourceTotal);
+    
+    // より詳細なエラーメッセージを表示
+    const message = `参加経緯別人数の合計と売上人数が一致しません。
+
+売上人数: ${customerCount}人
+参加経緯合計: ${sourceTotal}人
+差異: ${Math.abs(customerCount - sourceTotal)}人
+
+各参加経緯の内訳:
+- 紹介: ${referralCount}人
+- 広告: ${advertisingCount}人
+- リピート: ${repeatCount}人
+- 飛び込み: ${walkinCount}人
+- イベント参加: ${eventCount}人
+- SNSからの流入: ${snsCount}人
+- オンライン検索: ${searchCount}人
+
+すべての参加者がいずれかの経緯に分類されているか確認してください。`;
+
+    alert(message);
+    return;
+}
     
     // 現在の日時
     const now = new Date();
